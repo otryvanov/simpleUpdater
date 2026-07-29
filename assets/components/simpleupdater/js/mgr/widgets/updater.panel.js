@@ -22,9 +22,19 @@ simpleUpdater.panel.Updater = function (config) {
                         success: {
                             fn: function (response) {
                                 Ext.getCmp(config.id + '-loading').hide();
-                                if (response.object.show_button) {
+                                if (response.object.show_button && response.object.versions && response.object.versions.length > 0) {
+                                    // Build version selector for the panel
+                                    var versionOptions = '';
+                                    Ext.each(response.object.versions, function(version) {
+                                        versionOptions += '<option value="' + version.version + '">' + version.version + '</option>';
+                                    });
+                                    var versionSelector = '<select id="' + config.id + '-version-select" style="margin: 10px; padding: 5px;">' + versionOptions + '</select>';
+                                    
                                     Ext.get(config.id + '-version_info').dom.innerHTML = response.object.changelog;
                                     Ext.getCmp(config.id + '-update-available').show().setTitle('MODX Revolution ' + response.object.version);
+                                    
+                                    // Add version selector before the update button
+                                    Ext.DomHelper.insertHtml('beforeEnd', config.id + '-update-available-body', versionSelector);
                                 } else {
                                     Ext.getCmp(config.id + '-no-update-available').show();
                                 }
@@ -91,15 +101,25 @@ simpleUpdater.panel.Updater = function (config) {
 };
 Ext.extend(simpleUpdater.panel.Updater, MODx.FormPanel, {
     _startUpdate: function () {
+        // Get selected version from the dropdown if it exists
+        var versionSelect = Ext.get(this.config.id + '-version-select');
+        var selectedVersion = versionSelect ? versionSelect.dom.value : null;
+        
         Ext.getCmp(this.config.id + '-update-available').hide()
         Ext.getCmp(this.config.id + '-update-log').show();
-        Ext.getCmp(this.config.id).form.submit({
+        
+        // Submit with selected version
+        MODx.Ajax.request({
             url: simpleUpdater.config.connectorUrl,
+            params: {
+                action: 'mgr/version/update',
+                version: selectedVersion
+            },
             success: function () {
                 document.location.href = '/setup/';
             },
-            failure: function (form, response) {
-                Ext.get(config.id + '-update-log').dom.innerHTML = response.result.message;
+            failure: function (response) {
+                Ext.get(this.config.id + '-update-log').dom.innerHTML = response.object.message;
             }
         });
     }
