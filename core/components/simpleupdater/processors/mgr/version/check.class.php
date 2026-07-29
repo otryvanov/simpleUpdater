@@ -28,51 +28,61 @@ class simpleUpdaterCheckProcessor extends modProcessor
         $registry->connect();
         $topic = '/simpleUpdater/';
         $registry->subscribe($topic . 'version');
-        $maxVersion = array_shift($registry->read(array('poll_limit' => 1, 'remove_read' => false)));
-        if (empty($maxVersion)) {
+        $versionsData = array_shift($registry->read(array('poll_limit' => 1, 'remove_read' => false)));
+        if (empty($versionsData)) {
             $contents = $simpleupdater->requestUrl('https://api.github.com/repos/modxcms/revolution/tags', true);
             $contents = $this->modx->fromJSON($contents);
             if (empty($contents)) {
                 $object['success'] = false;
                 return $this->failure('', $object);
             } else {
+                $versions = array();
                 foreach ($contents as $key => $content) {
                     $name = substr($content['name'], 1);
                     if (strpos($name, 'pl') === false) {
                         unset($contents[$key]);
                         continue;
                     }
+                    $versions[] = array(
+                        'version' => $name,
+                        'changelog_url' => 'https://raw.githubusercontent.com/modxcms/revolution/' . $content['name'] . '/core/docs/changelog.txt'
+                    );
                 }
                 $contents = array_values($contents);
                 $maxVersion = 0;
-                foreach ($contents as $version) {
-                    if (!$maxVersion || version_compare($maxVersion, $version['name']) < 0) {
-                        $maxVersion = $version['name'];
+                foreach ($versions as $version) {
+                    if (!$maxVersion || version_compare($maxVersion, $version['version']) < 0) {
+                        $maxVersion = $version['version'];
                     }
                 }
-                $changelog = trim($simpleupdater->requestUrl('https://raw.githubusercontent.com/modxcms/revolution/' . $maxVersion . '/core/docs/changelog.txt'));
                 $registry->subscribe($topic);
                 $registry->send(
                     $topic,
-                    array('version' => $maxVersion, 'changelog' => $changelog),
+                    array('versions' => $versions, 'max_version' => $maxVersion),
                     array('ttl' => $ttl)
                 );
             }
+        } else {
+            $versions = $versionsData['versions'];
+            $maxVersion = $versionsData['max_version'];
         }
         $this->modx->getVersionData();
         $currentVersion = $this->modx->version['version'];
         $currentVersion .= '.' . $this->modx->version['major_version'];
         $currentVersion .= '.' . $this->modx->version['minor_version'];
         $currentVersion = 'v' . $currentVersion . '-'. $this->modx->version['patch_level'];
-        if (version_compare($currentVersion, $maxVersion, '<')) {
-            $registry->subscribe($topic . 'changelog');
-            $changelog = array_shift($registry->read(array('poll_limit' => 1, 'remove_read' => false)));
-            if (empty($changelog)) {
-                $changelog = trim(file_get_contents('https://raw.githubusercontent.com/modxcms/revolution/' . $maxVersion . '/core/docs/changelog.txt'));
+        
+        $availableVersions = array();
+        foreach ($versions as $version) {
+            if (version_compare($currentVersion, $version['version'], '<')) {
+                $availableVersions[] = $version;
             }
+        }
+        
+        if (!empty($availableVersions)) {
             $object['show_button'] = true;
-            $object['version'] = $maxVersion;
-            $object['changelog'] = $changelog;
+            $object['versions'] = $availableVersions;
+            $object['current_version'] = $currentVersion;
         }
         if (!$object['success']) {
             $o = $this->failure('', $object);
