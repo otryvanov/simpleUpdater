@@ -67,10 +67,8 @@ class simpleUpdaterCheckProcessor extends modProcessor
             $maxVersion = $versionsData['max_version'];
         }
         $this->modx->getVersionData();
-        $currentVersion = $this->modx->version['version'];
-        $currentVersion .= '.' . $this->modx->version['major_version'];
-        $currentVersion .= '.' . $this->modx->version['minor_version'];
-        $currentVersion = 'v' . $currentVersion . '-'. $this->modx->version['patch_level'];
+        // Build current version string properly for MODX 2.8.x
+        $currentVersion = 'v' . $this->modx->version['version'] . '-' . $this->modx->version['patch_level'];
         
         $availableVersions = array();
         foreach ($versions as $version) {
@@ -79,10 +77,15 @@ class simpleUpdaterCheckProcessor extends modProcessor
             }
         }
         
+        // Always show button for administrators, even if no update is available
+        // This allows users to see the version selector and manually choose a version
+        $object['show_button'] = true;
+        $object['versions'] = $versions;
+        $object['current_version'] = $currentVersion;
         if (!empty($availableVersions)) {
-            $object['show_button'] = true;
-            $object['versions'] = $availableVersions;
-            $object['current_version'] = $currentVersion;
+            $object['has_update'] = true;
+        } else {
+            $object['has_update'] = false;
         }
         if (!$object['success']) {
             $o = $this->failure('', $object);

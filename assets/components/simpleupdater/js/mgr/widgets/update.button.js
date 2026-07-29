@@ -93,6 +93,7 @@ function updateMODX() {
                 });
             }
         });
+        // Initialize the combo box with available versions
         if (simpleUpdateConfig.versions && simpleUpdateConfig.versions.length > 0) {
             var combo = Ext.getCmp('simpleupdater-version-select');
             if (combo) {
@@ -103,6 +104,9 @@ function updateMODX() {
                     loadChangelog(firstRecord.data.changelog_url);
                 }
             }
+        } else {
+            // No versions available - show a message
+            Ext.Msg.alert(_('warning'), 'No versions available for update. Please check your internet connection.');
         }
     }
     simpleUpdaterWindow.show(Ext.EventObject.target);
@@ -135,11 +139,36 @@ function loadChangelog(url) {
 
 Ext.onReady(function () {
     if (simpleUpdateConfig.show_button) {
-        var usermenuUl = document.getElementById('modx-user-menu'),
-            firstLi = usermenuUl.firstChild,
-            simpleUpdaterLi = document.createElement('LI');
+        // Try to find the user menu in different ways for MODX 2.8.x compatibility
+        var usermenuUl = document.getElementById('modx-user-menu');
+        
+        // If not found, try to find it by class or other means
+        if (!usermenuUl) {
+            usermenuUl = Ext.query('#modx-user-menu')[0];
+        }
+        
+        // For MODX 2.8.x, the menu might be rendered differently
+        if (!usermenuUl) {
+            // Try to find the top-right toolbar where user menu typically is
+            var topBar = Ext.query('.modx-topbar .x-toolbar')[0] || Ext.query('.x-toolbar')[0];
+            if (topBar) {
+                usermenuUl = topBar.el.dom;
+            }
+        }
+        
+        if (usermenuUl) {
+            var firstLi = usermenuUl.firstChild,
+                simpleUpdaterLi = document.createElement('LI');
 
-        simpleUpdaterLi.innerHTML = '<span id="simpleupdater-link" class="x-btn x-btn-small primary-button" onclick="updateMODX()" style="margin: 10px;">' + _('simpleupdater_update') + '</span>';
-        usermenuUl.insertBefore(simpleUpdaterLi, firstLi);
+            simpleUpdaterLi.innerHTML = '<span id="simpleupdater-link" class="x-btn x-btn-small primary-button" onclick="updateMODX()" style="margin: 10px;">' + _('simpleupdater_update') + '</span>';
+            usermenuUl.insertBefore(simpleUpdaterLi, firstLi);
+        } else {
+            // Fallback: add button to the top of the body or show a message
+            console.log('SimpleUpdater: Could not find user menu, trying alternative placement');
+            var altContainer = document.querySelector('.modx-topbar') || document.body;
+            var btn = document.createElement('div');
+            btn.innerHTML = '<span id="simpleupdater-link" class="x-btn x-btn-small primary-button" onclick="updateMODX()" style="margin: 10px; float: right;">' + _('simpleupdater_update') + '</span>';
+            altContainer.insertBefore(btn, altContainer.firstChild);
+        }
     }
 });

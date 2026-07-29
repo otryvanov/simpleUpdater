@@ -22,12 +22,26 @@ switch ($modx->event->name) {
     case 'OnManagerPageBeforeRender':
         if ($modx->user->isMember('Administrator')) {
             $modx->controller->addLexiconTopic('simpleupdater:default');
-            $modx->controller->addJavascript($simpleupdater->getOption('assetsUrl') . 'js/mgr/widgets/update.button.js?v=' . $simpleupdater->version);
+            
+            // Run the version check processor to get available versions
             $response = $modx->runProcessor('mgr/version/check', array(), array(
                 'processors_path' => $simpleupdater->getOption('processorsPath')
             ));
-            $html = "<script>var simpleUpdateConfig = " . json_encode($response->getObject(), JSON_PRETTY_PRINT) . ";</script>";
+            
+            // Get the response object and ensure it has proper data
+            $configData = $response->getObject();
+            
+            // Ensure versions array exists even if empty
+            if (!isset($configData['versions'])) {
+                $configData['versions'] = array();
+            }
+            
+            // Always set show_button to true for administrators
+            $configData['show_button'] = true;
+            
+            $html = "<script>var simpleUpdateConfig = " . json_encode($configData, JSON_PRETTY_PRINT) . ";</script>";
             $modx->controller->addHtml($html);
+            $modx->controller->addJavascript($simpleupdater->getOption('assetsUrl') . 'js/mgr/widgets/update.button.js?v=' . $simpleupdater->version);
         }
         break;
 }
