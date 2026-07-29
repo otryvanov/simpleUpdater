@@ -17,23 +17,14 @@ class simpleUpdaterUpdateProcessor extends modProcessor
             'core_path' => $corePath
         ));
 
+        $version = $this->getProperty('version');
+        if (empty($version)) {
+            return $this->failure('Version not specified');
+        }
+
         $object = array(
             'success' => false
         );
-        $response = $this->modx->runProcessor('mgr/version/check', array(), array(
-            'processors_path' => $simpleupdater->getOption('processorsPath')
-        ));
-        $resObj = $response->getObject();
-        if (!$resObj['version']) {
-            $this->modx->getVersionData();
-            $currentVersion  = $this->modx->version['version'];
-            $currentVersion .= '.'.$this->modx->version['major_version'];
-            $currentVersion .= '.'.$this->modx->version['minor_version'];
-            $currentVersion = 'v'.$currentVersion.'-pl';
-            $resObj = array('version' => $currentVersion);
-        }
-        $version = str_replace('v','',$resObj['version']);
-        $link = 'https://modx.com/download/direct?id=modx-'.$version.'-advanced.zip';
 
         error_reporting(0);
         ini_set('display_errors', 0);
@@ -46,6 +37,7 @@ class simpleUpdaterUpdateProcessor extends modProcessor
         }
         
         //run unzip and install
+        $link = 'https://modx.com/download/direct?id=modx-'.$version.'-advanced.zip';
         ModxInstaller::downloadFile($link, $this->modx->getOption('base_path') . "modx.zip");
         $zip = new ZipArchive;
         $res = $zip->open($this->modx->getOption('base_path') ."modx.zip");
@@ -54,8 +46,8 @@ class simpleUpdaterUpdateProcessor extends modProcessor
         unlink($this->modx->getOption('base_path').'modx.zip');
         
         if ($handle = opendir($this->modx->getOption('base_path').'temp')) {
-        	while (false !== ($name = readdir($handle))) if ($name != "." && $name != "..") $dir = $name;
-        	closedir($handle);
+            while (false !== ($name = readdir($handle))) if ($name != "." && $name != "..") $dir = $name;
+            closedir($handle);
         }
         $object['success'] = true;
         ModxInstaller::copyFolder($this->modx->getOption('base_path').'temp/'.$dir, $this->modx->getOption('base_path'));
